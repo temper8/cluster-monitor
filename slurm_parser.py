@@ -13,17 +13,17 @@ def parse_sinfo_output(raw_output: str):
     # Удаляем звёздочку из состояний (например, down* -> down)
     df['STATE'] = df['STATE'].str.rstrip('*')
     #df['NODES'] = df['NODES'].str.strip()
-  
+
     # Подсчёт узлов по состояниям
     states_counts = df['STATE'].value_counts()
-    print(states_counts)
+    #print(states_counts)
 
     return {
         "df": df,
-        "free_nodes": states_counts['idle'],
-        "allocated_nodes": states_counts['allocated'],
-        "down_nodes": states_counts['down'],
-        "total_nodes": states_counts['idle'] + states_counts['allocated'] + states_counts['down'],
+        "free_nodes": states_counts.get('idle',0),
+        "allocated_nodes": states_counts.get('allocated',0),
+        "down_nodes": states_counts.get('down',0),
+        "total_nodes": states_counts.get('idle',0) + states_counts.get('allocated',0) + states_counts.get('down',0),
         #"states": states,
         #"nodes": df.to_dict(orient='records')
     }
