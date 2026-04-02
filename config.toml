@@ -5,6 +5,14 @@ key_path = "~/.ssh/monitor_key"
 sinfo_args = "-N -l"
 output_file = "data/sinfo_raw.txt"
 
+[ntfy]
+topic = "my_slurm_cluster"
+server = "https://ntfy.sh"                 # опционально
+title = "SLURM Cluster Alert"
+message = "Свободных узлов: {free_nodes}"
+priority = "high"
+tags = "warning,computer"
+
 [telegram]
 bot_token = "123456:ABC-DEF"
 chat_id = "-1001234567890"
