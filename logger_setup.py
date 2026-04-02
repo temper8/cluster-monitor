@@ -1,4 +1,7 @@
 
+import sys
+from loguru import logger
+
 def setup_logging(log_file: str = "slurm_collector.log") -> None:
     """Настраивает логирование loguru: вывод в терминал и в файл."""
     logger.remove()  # Удаляем стандартный обработчик (по умолчанию stderr)
