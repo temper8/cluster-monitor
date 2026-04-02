@@ -91,7 +91,7 @@ def save_output(content: str, output_file: str) -> None:
     logger.info(f"Результат сохранён в {output_path}")
 
 def main() -> None:
-    setup_logging()
+
     logger.info("Запуск slurm_collector.py")
 
     full_config = load_config()
