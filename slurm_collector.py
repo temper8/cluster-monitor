@@ -4,50 +4,66 @@ slurm_collector.py
 
 Собирает состояние кластера Slurm через sinfo по SSH и сохраняет в файл.
 Параметры берутся из config.toml (секция [slurm]).
-Использует paramiko для SSH-подключения.
+Требуется Python 3.13+.
 """
 
 import sys
 import os
 from datetime import datetime
 from pathlib import Path
+import tomllib
 import paramiko
-
-# Поддержка TOML для разных версий Python
-try:
-    from tomllib import load as toml_load
-except ImportError:
-    try:
-        from tomli import load as toml_load
-    except ImportError:
-        print("Ошибка: требуется модуль tomli (Python<3.11) или tomllib (3.11+). Установите: pip install tomli", file=sys.stderr)
-        sys.exit(1)
+from loguru import logger
 
 CONFIG_PATH = Path(__file__).parent / "config.toml"
 
-def load_config():
+def setup_logging(log_file: str = "slurm_collector.log") -> None:
+    """Настраивает логирование loguru: вывод в терминал и в файл."""
+    logger.remove()  # Удаляем стандартный обработчик (по умолчанию stderr)
+    # Вывод в терминал (stderr) с цветом и форматом
+    logger.add(
+        sys.stderr,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>",
+        level="INFO"
+    )
+    # Вывод в файл с ротацией (10 МБ, хранить 3 файла)
+    logger.add(
+        log_file,
+        rotation="10 MB",
+        retention=3,
+        compression="gz",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function} - {message}",
+        level="DEBUG"
+    )
+
+def load_config() -> dict:
     """Загружает конфигурацию из TOML-файла."""
     if not CONFIG_PATH.exists():
-        print(f"Файл конфигурации не найден: {CONFIG_PATH}", file=sys.stderr)
+        logger.error(f"Файл конфигурации не найден: {CONFIG_PATH}")
         sys.exit(1)
     with open(CONFIG_PATH, "rb") as f:
-        return toml_load(f)
+        return tomllib.load(f)
 
-def create_ssh_client(config):
-    """Создаёт и возвращает SSH-клиент paramiko на основе конфига."""
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+def fetch_sinfo(slurm_config: dict) -> tuple[str, str, int]:
+    """
+    Подключается по SSH к удалённому хосту, выполняет sinfo и возвращает вывод.
 
-    host = config.get("host")
+    Аргументы:
+        slurm_config: секция [slurm] из config.toml
+
+    Возвращает:
+        (stdout, stderr, exit_code)
+    """
+    host = slurm_config.get("host")
     if not host:
         raise ValueError("В конфиге отсутствует 'host' в секции [slurm]")
 
-    username = config.get("username")
-    port = config.get("port", 22)
-    timeout = config.get("timeout", 10)
-
-    key_path = config.get("key_path")
-    password = config.get("password")
+    username = slurm_config.get("username")
+    port = slurm_config.get("port", 22)
+    timeout = slurm_config.get("timeout", 10)
+    key_path = slurm_config.get("key_path")
+    password = slurm_config.get("password")
+    sinfo_args = slurm_config.get("sinfo_args", "-o '%P %a %l %D %T %c %m %e'")
 
     connect_kwargs = {
         "hostname": host,
@@ -65,80 +81,73 @@ def create_ssh_client(config):
     #else:
     #    raise ValueError("В конфиге должен быть указан key_path или password для SSH")
 
-    client.connect(**connect_kwargs)
-    return client
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        logger.info(f"Подключение к {host}:{port} как {username}")
+        client.connect(**connect_kwargs)
+        command = f"sinfo {sinfo_args}".strip()
+        logger.debug(f"Выполняется команда: {command}")
+        _, stdout, stderr = client.exec_command(command, timeout=30)
+        exit_code = stdout.channel.recv_exit_status()
+        out = stdout.read().decode("utf-8")
+        err = stderr.read().decode("utf-8")
+        logger.info(f"Команда завершена с кодом {exit_code}")
+        return out, err, exit_code
+    except Exception as e:
+        logger.exception(f"Ошибка при выполнении SSH/команды: {e}")
+        raise
+    finally:
+        client.close()
 
-def run_sinfo(client, sinfo_args):
-    """Выполняет команду sinfo и возвращает stdout, stderr, exit code."""
-    command = f"sinfo {sinfo_args}".strip()
-    stdin, stdout, stderr = client.exec_command(command, timeout=30)
-    exit_code = stdout.channel.recv_exit_status()
-    out = stdout.read().decode("utf-8")
-    err = stderr.read().decode("utf-8")
-    return out, err, exit_code
-
-def save_output(content, output_file):
-    """Сохраняет содержимое в файл."""
+def save_output(content: str, output_file: str) -> None:
+    """Сохраняет содержимое в файл (с перезаписью)."""
     output_path = Path(output_file)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with open(output_path, "w", encoding="utf-8") as f:
-            f.write(content)
-        return True
-    except Exception as e:
-        print(f"Ошибка записи в файл {output_path}: {e}", file=sys.stderr)
-        return False
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    logger.info(f"Результат сохранён в {output_path}")
 
-def main():
-    # Загрузка конфигурации
+def main() -> None:
+    setup_logging()
+    logger.info("Запуск slurm_collector.py")
+
     full_config = load_config()
-    slurm_cfg = full_config.get("slurm", {})
+    slurm_cfg = full_config.get("slurm")
     if not slurm_cfg:
-        print("Ошибка: в config.toml отсутствует секция [slurm]", file=sys.stderr)
+        logger.error("В config.toml отсутствует секция [slurm]")
         sys.exit(1)
 
-    # Параметры с значениями по умолчанию
-    sinfo_args = slurm_cfg.get("sinfo_args", "-o '%P %a %l %D %T %c %m %e'")
     output_file = slurm_cfg.get("output_file")
-    append = slurm_cfg.get("append", False)
-
-    # Если output_file не указан, генерируем с датой
     if not output_file:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = f"slurm_state_{timestamp}.txt"
+        logger.info(f"output_file не задан, используется {output_file}")
 
-    # Подключение по SSH и выполнение sinfo
-    client = None
     try:
-        print(f"Подключение к {slurm_cfg.get('host')}...")
-        client = create_ssh_client(slurm_cfg)
-        print("Выполнение sinfo...")
-        stdout, stderr, rc = run_sinfo(client, sinfo_args)
+        stdout, stderr, rc = fetch_sinfo(slurm_cfg)
 
         if rc != 0:
-            print(f"Ошибка выполнения sinfo (код {rc}):", file=sys.stderr)
-            print(stderr, file=sys.stderr)
+            logger.error(f"Ошибка выполнения sinfo (код {rc})")
+            logger.error(f"stderr: {stderr}")
             sys.exit(1)
 
         if not stdout.strip():
-            print("Предупреждение: sinfo не вернул данных (возможно, пустой кластер).", file=sys.stderr)
+            logger.warning("sinfo не вернул данных (возможно, пустой кластер)")
 
-        # Формируем вывод с заголовком
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        header = f"# Состояние Slurm кластера от {timestamp}\n# Хост: {slurm_cfg['host']}\n# Команда: sinfo {sinfo_args}\n\n"
+        header = (
+            f"# Состояние Slurm кластера от {timestamp}\n"
+            f"# Хост: {slurm_cfg['host']}\n"
+            f"# Команда: sinfo {slurm_cfg.get('sinfo_args', '')}\n\n"
+        )
         content = header + stdout
 
-        if save_output(content, output_file, append):
-            print(f"Результат сохранён в {output_file}")
-        else:
-            sys.exit(1)
-
+        save_output(content, output_file)
+        logger.success("Скрипт успешно завершён")
     except Exception as e:
-        print(f"Критическая ошибка: {e}", file=sys.stderr)
+        logger.exception(f"Критическая ошибка: {e}")
         sys.exit(1)
-    finally:
-        if client:
-            client.close()
 
 if __name__ == "__main__":
-    main()
+    main()  
