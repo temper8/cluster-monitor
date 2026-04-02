@@ -1,0 +1,10 @@
+[slurm]
+host = "login.node"
+username = "monitor"
+key_path = "~/.ssh/monitor_key"
+sinfo_args = "-N -l"
+output_file = "data/sinfo_raw.txt"
+
+[telegram]
+bot_token = "123456:ABC-DEF"
+chat_id = "-1001234567890"
