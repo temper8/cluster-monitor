@@ -39,8 +39,8 @@ def should_save_output(stdout: str, hash_path: Path | None) -> bool:
     if hash_path is None:
         logger.debug("hash_file не задан, сохраняем всегда")
         return True
-
-    current_hash = hash_utils.compute_hash(stdout)
+    # нужно удалить первую строку - в ней содержиться время.
+    current_hash = hash_utils.compute_hash(stdout.split('\n', 1)[-1])
     previous_hash = hash_utils.load_previous_hash(hash_path)
     if previous_hash is not None and current_hash == previous_hash:
         logger.info("Хэш вывода sinfo не изменился. Сохранение не требуется.")
@@ -48,6 +48,9 @@ def should_save_output(stdout: str, hash_path: Path | None) -> bool:
 
     logger.info(f"Хэш изменился (был {previous_hash[:8] if previous_hash else 'None'}, "
                 f"стал {current_hash[:8]}...). Сохраняем.")
+    if hash_path:
+        hash_utils.save_hash(hash_path, current_hash)
+        logger.debug(f"Хэш сохранён в {hash_path}")
     return True
 
 def save_output_with_header(stdout: str, output_file: str, host: str, sinfo_args: str) -> None:
@@ -107,14 +110,12 @@ def main() -> None:
     hash_path = Path(hash_file) if hash_file else None
 
     # 5. Проверка изменений и сохранение
-    if should_save_output(stdout, hash_path):
+    send_notification = should_save_output(stdout, hash_path)
+    if send_notification:
         save_output_with_header(stdout, output_file,
                                 slurm_cfg['host'],
                                 slurm_cfg.get('sinfo_args', ''))
-        if hash_path:
-            current_hash = hash_utils.compute_hash(stdout)
-            hash_utils.save_hash(hash_path, current_hash)
-            logger.debug(f"Хэш сохранён в {hash_path}")
+
 
     # 6. Парсинг вывода sinfo
     try:
@@ -128,19 +129,7 @@ def main() -> None:
 
     # 7. Отправка уведомления в ntfy (если секция ntfy присутствует)
     if ntfy_cfg:
-        threshold = ntfy_cfg.get("free_nodes_threshold")
-        # Если порог не задан — отправляем всегда при изменении (или всегда)
-        # Для примера: отправляем, если свободных узлов <= порог или порог не задан
-        send_notification = False
-        if threshold is None:
-            send_notification = True
-            logger.debug("Порог свободных узлов не задан, отправляем уведомление всегда")
-        elif free_nodes <= threshold:
-            send_notification = True
-            logger.info(f"Свободных узлов ({free_nodes}) меньше или равно порогу ({threshold})")
-        else:
-            logger.info(f"Свободных узлов ({free_nodes}) выше порога ({threshold}), уведомление не отправляем")
-
+        logger.info(f"Свободных узлов ({free_nodes}) ")
         if send_notification:
             message = ntfy_cfg.get("message", f"В кластере {free_nodes} свободных узлов")
             title = ntfy_cfg.get("title", "Состояние кластера Slurm")
