@@ -53,9 +53,19 @@ def send_ntfy_notification(message: str, ntfy_config: dict, free_nodes: int = No
         if key.startswith("header_"):
             header_name = key[7:]  # убираем 'header_'
             headers[header_name] = str(value)
+    
+    # Прокси
+    proxies = None
+    proxy_url = ntfy_config.get("proxy")
+    if proxy_url:
+        proxies = {
+            "http": proxy_url,
+            "https": proxy_url,
+        }
+        logger.debug(f"Используется прокси: {proxy_url}")
 
     try:
-        response = requests.post(url, data=final_message.encode("utf-8"), headers=headers, timeout=10)
+        response = requests.post(url, data=final_message.encode("utf-8"), headers=headers, timeout=10, proxies=proxies)
         response.raise_for_status()
         logger.info(f"Уведомление отправлено в ntfy: {url}")
         logger.debug(f"Сообщение: {final_message}")
