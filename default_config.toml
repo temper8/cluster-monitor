@@ -4,10 +4,12 @@ username = "monitor"
 key_path = "~/.ssh/monitor_key"
 sinfo_args = "-N -l"
 output_file = "data/sinfo_raw.txt"
+hash_file = "data/current_state.txt.hash"
 
 [ntfy]
 topic = "my_slurm_cluster"
 server = "https://ntfy.sh"                 # опционально
+proxy = "http://proxy.example.com:8080"    # опционально
 title = "SLURM Cluster Alert"
 message = "Свободных узлов: {free_nodes}"
 priority = "high"
