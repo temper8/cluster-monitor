@@ -14,7 +14,7 @@
 ## Требования
 
 - Python 3.13 или выше
-- Установленные зависимости loguru, pandas,paramiko, requests.
+- Зависимости loguru, pandas, paramiko, requests.
 
 ## Установка
 
@@ -24,11 +24,25 @@
    cd cluster_monitor
    ```
 
-2. Создайте файл конфигурации config.toml (см. раздел Конфигурация).
+2. Создайте файл конфигурации config.toml (Используйте default_config.toml в качестве образца).
 
 3. Запустите скрипт командой:
     ```bash
-    uv run main.py
+        uv run main.py
     ```
 
         
+## Структура проекта
+
+    ```
+        cluster_monitor/
+        ├── config.toml                # конфигурация (создаётся пользователем)
+        ├── main.py                    # оркестратор
+        ├── slurm_collector.py         # SSH + выполнение sinfo
+        ├── slurm_parser.py            # парсинг вывода sinfo
+        ├── hash_utils.py              # работа с хэшами
+        ├── notifier.py                # отправка уведомлений в ntfy
+        ├── logger_setup.py            # настройка логирования
+        ├── README.md
+        └── requirements.txt           (опционально)
+    ```        
