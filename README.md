@@ -34,15 +34,15 @@
         
 ## Структура проекта
 
-    ```
-        cluster_monitor/
-        ├── config.toml                # конфигурация (создаётся пользователем)
-        ├── main.py                    # оркестратор
-        ├── slurm_collector.py         # SSH + выполнение sinfo
-        ├── slurm_parser.py            # парсинг вывода sinfo
-        ├── hash_utils.py              # работа с хэшами
-        ├── notifier.py                # отправка уведомлений в ntfy
-        ├── logger_setup.py            # настройка логирования
-        ├── README.md
-        └── requirements.txt           (опционально)
-    ```        
+```
+    cluster_monitor/
+    ├── config.toml                # конфигурация (создаётся пользователем)
+    ├── main.py                    # оркестратор
+    ├── slurm_collector.py         # SSH + выполнение sinfo
+    ├── slurm_parser.py            # парсинг вывода sinfo
+    ├── hash_utils.py              # работа с хэшами
+    ├── notifier.py                # отправка уведомлений в ntfy
+    ├── logger_setup.py            # настройка логирования
+    └── README.md
+```        
+
