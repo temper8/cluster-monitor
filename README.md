@@ -73,3 +73,54 @@ uv run main.py
 В терминал выводятся сообщения уровня `INFO` и выше (с цветом).
 
 В файл `cluster_monitor.log` (или заданный в [logging]) пишутся сообщения уровня `DEBUG` и выше с ротацией при 10 МБ (хранятся 3 сжатых архива).
+
+
+
+
+## Промт проекта cluster_monitor
+
+Разработать на Python 3.13+ модульный мониторинг состояния Slurm кластера, который:
+
+1. Подключается к удалённому хосту по SSH (paramiko) и выполняет `sinfo -N -l`.
+2. Сохраняет вывод в файл, но только если изменилось содержимое (SHA256 хэш).
+3. Парсит вывод с помощью pandas, выделяя количество свободных (idle/free), выделенных (allocated) и недоступных (down) узлов.
+4. Отправляет уведомления в ntfy, если количество свободных узлов опускается ниже заданного порога (с поддержкой прокси, заголовков, приоритета).
+5. Логирует всё через loguru (терминал + файл с ротацией).
+6. Управляется через единый конфигурационный файл `config.toml` (секции slurm, ntfy, logging).
+7. Использует `uv` для управления зависимостями и запуска (`uv run main.py`).
+
+### Структура модулей:
+- `main.py` – оркестратор.
+- `slurm_collector.py` – SSH + выполнение sinfo.
+- `slurm_parser.py` – парсинг вывода sinfo.
+- `hash_utils.py` – хэширование и работа с файлами хэшей.
+- `notifier.py` – отправка уведомлений в ntfy.
+- `logger_setup.py` – настройка loguru.
+
+### Ключевые требования:
+- Код должен быть чистым, с аннотациями типов.
+- Обработка ошибок и логирование на каждом этапе.
+- Поддержка только Python 3.13+ (использовать встроенный tomllib).
+- Не использовать устаревшие модули (всё через pathlib, paramiko, pandas, requests, loguru).
+- Гибкая конфигурация: если hash_file не указан – сохранять всегда; если ntfy секция отсутствует – не отправлять уведомления.
+- Запуск: `uv run main.py`.
+
+### Пример config.toml:
+```toml
+[slurm]
+host = "login.cluster.example.com"
+username = "monitor"
+key_path = "~/.ssh/id_rsa"
+sinfo_args = "-N -l"
+output_file = "state.txt"
+hash_file = "state.txt.hash"
+
+[ntfy]
+topic = "cluster_alerts"
+server = "https://ntfy.sh"
+title = "Cluster status"
+message = "Free nodes: {free_nodes}"
+free_nodes_threshold = 5
+
+[logging]
+log_file = "monitor.log"
