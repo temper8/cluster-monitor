@@ -1,4 +1,4 @@
-# cluster_monitor
+# cluster-monitor
 
 Мониторинг состояния Slurm кластера: сбор данных через `sinfo -N -l`, проверка изменений (по хэшу), сохранение результата в файл и отправка уведомлений в [ntfy](https://ntfy.sh/) при падении количества свободных узлов ниже порога.
 
@@ -22,3 +22,11 @@
    ```bash
    git clone https://github.com/yourname/cluster_monitor.git
    cd cluster_monitor
+   ```
+
+2. Создайте файл конфигурации config.toml (см. раздел Конфигурация).
+
+3. Запустите скрипт командой:
+    ```bash
+    uv run main.py
+    ```
