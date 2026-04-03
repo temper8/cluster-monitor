@@ -24,7 +24,7 @@
    cd cluster_monitor
    ```
 
-2. Создайте файл конфигурации config.toml (Используйте default_config.toml в качестве образца).
+2. Создайте файл конфигурации `config.toml` (Используйте `default_config.toml` в качестве образца).
 
 3. Запустите скрипт командой:
     ```bash
