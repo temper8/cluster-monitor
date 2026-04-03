@@ -37,6 +37,7 @@
 ```
     cluster_monitor/
     ├── config.toml                # конфигурация (создаётся пользователем)
+    ├── default_config.toml        # пример конфигурация
     ├── main.py                    # оркестратор
     ├── slurm_collector.py         # SSH + выполнение sinfo
     ├── slurm_parser.py            # парсинг вывода sinfo
