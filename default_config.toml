@@ -3,8 +3,8 @@ host = "login.node"
 username = "monitor"
 key_path = "~/.ssh/monitor_key"
 sinfo_args = "-N -l"
-output_file = "data/sinfo_raw.txt"
-hash_file = "data/current_state.txt.hash"
+output_file = "data/state.txt"
+hash_file = "data/state.hash.txt"
 
 [ntfy]
 topic = "my_slurm_cluster"
