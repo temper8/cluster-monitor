@@ -63,8 +63,9 @@ uv run main.py
 ```cron
 */5 * * * * cd /path/to/cluster_monitor && /path/to/uv run main.py
 ```
+
 Если `uv` не находится в `PATH`, укажите полный путь к исполняемому файлу `uv` (обычно `~/.local/bin/uv`).
-```
+
 
 ## Логирование
 
