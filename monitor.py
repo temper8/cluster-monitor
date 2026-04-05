@@ -55,22 +55,18 @@ class SlurmMonitor:
         # Цепочка: создаём клиент -> выполняем команду -> закрываем клиент
         return self._create_ssh_client().bind(lambda client: execute(client))
 
-
-    def save_if_changed(self, content: str) -> ResultE[bool]:
+    @safe
+    def save_if_changed(self, content: str) -> bool:
         """Сохраняет вывод, если изменился хэш. Возвращает Result[bool, Exception]."""
-        try:
-            new_hash = compute_sha256(content.split('\n', 1)[-1])
-            old_hash = read_hash(self.hash_file)
-            if new_hash == old_hash:
-                logger.debug("Содержимое не изменилось, файл не перезаписан")
-                return Success(False)
-            self.output_file.write_text(content, encoding="utf-8")
-            write_hash(self.hash_file, new_hash)
-            logger.info(f"Вывод сохранён в {self.output_file} (хэш: {new_hash[:8]}...)")
-            return Success(True)
-        except Exception as e:
-            logger.info("Произошла ошибка, файл не перезаписан")
-            return Success(False)
+        new_hash = compute_sha256(content.split('\n', 1)[-1])
+        old_hash = read_hash(self.hash_file)
+        if new_hash == old_hash:
+            logger.debug("Содержимое не изменилось, файл не перезаписан")
+            return False
+        self.output_file.write_text(content, encoding="utf-8")
+        write_hash(self.hash_file, new_hash)
+        logger.info(f"Вывод сохранён в {self.output_file} (хэш: {new_hash[:8]}...)")
+        return True
 
     @safe
     def parse_states(self, raw_output: str) -> tuple[int, int, int]:
