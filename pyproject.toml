@@ -9,4 +9,5 @@ dependencies = [
     "pandas>=3.0.2",
     "paramiko>=4.0.0",
     "requests>=2.33.1",
+    "returns>=0.26.0",
 ]
