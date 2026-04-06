@@ -29,9 +29,6 @@ def main():
     config = load_config(config_file)
     setup_logging() #config.get("logging", {}))
 
-
-    # Обработка результата парсинга
-    
     changed = True
     free, allocated, down = 1, 2, 3,
     logger.info(f"Состояние кластера {'' if changed else "не"} изменилось.")
@@ -41,10 +38,7 @@ def main():
         if ntfy_cfg:
             tags = "red_circle" if free == 0 else "green_circle"
             res = ntfy.send(ntfy_cfg,  message = f"free={free}, allocated={allocated}, down={down}", tags= tags )
-            if is_successful(res):
-                logger.info(res.unwrap())
-            else:
-                logger.error(res.failure)
+            logger.info(res.unwrap()) if is_successful(res) else logger.error(res.failure) 
     
     logger.info("=== Мониторинг завершён ===")
 if __name__ == "__main__":
