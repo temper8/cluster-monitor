@@ -35,9 +35,9 @@ def main():
 
     monitor = SlurmMonitor(slurm_cfg, output_dir)
     
-    result  = monitor.fetch_output()
-    changed = result.bind(monitor.save_if_changed).value_or(True)
-    result  = result.bind(monitor.parse_states)
+    content = monitor.fetch_output()
+    changed = content.bind(monitor.save_if_changed).value_or(False)
+    result  = content.bind(monitor.parse_states)
 
     # Обработка результата парсинга
     if is_successful(result):
