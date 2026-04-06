@@ -50,10 +50,7 @@ def main():
             if ntfy_cfg:
                 tags = "red_circle" if free == 0 else "green_circle"
                 res = ntfy.send(ntfy_cfg,  message = f"free={free}, allocated={allocated}, down={down}", tags= tags )
-                if is_successful(res):
-                    logger.info(res.unwrap())
-                else:
-                    logger.error(res.failure)
+                logger.info(res.unwrap()) if is_successful(res) else logger.error(res.failure)      
     else:
         logger.error(f"Мониторинг не удался: {result.failure()}")
     logger.info("=== Мониторинг завершён ===")
