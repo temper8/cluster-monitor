@@ -1,4 +1,7 @@
 """Отправляет уведомления в ntfy с поддержкой прокси и заголовков."""
+import time
+
+from loguru import logger
 import requests
 from returns.result import Result, Success, Failure
 
@@ -29,14 +32,20 @@ def send(config: dict, message: str, tags: str|None = None) -> Result[str, str]:
     proxies = None
     if "proxy" in config:
         proxies = {"http": config["proxy"], "https": config["proxy"]}
-
-    try:
-        response = requests.post(url,  data=message.encode("utf-8"), headers=headers, proxies=proxies, timeout=10)
-        if response.status_code == 200:
-            return Success(f"Уведомление отправлено в ntfy")
-        else:
-            error_msg = f"ntfy вернул {response.status_code}: {response.text}"
-            return Failure(error_msg)
-    except Exception as e:
-        error_msg = (f"Ошибка при отправке уведомления: {e}")
-        return Failure(error_msg)
+    max_attempts = 5
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            response = requests.post(url,  data=message.encode("utf-8"), headers=headers, proxies=proxies, timeout=10)
+            if response.status_code == 200:
+                logger.info(f"Уведомление отправлено в ntfy")
+                break
+            else:
+                error_msg = f"ntfy вернул {response.status_code}: {response.text}"
+                logger.error(error_msg) 
+        except Exception as e:
+            error_msg = (f"Ошибка при отправке уведомления: {e}")
+            logger.error(error_msg) 
+        attempts += 1
+        logger.debug(f"Неудача, попытка {attempts}...")
+        time.sleep(30)  # Пауза перед следующей попыткой
